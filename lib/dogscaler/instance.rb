@@ -46,32 +46,35 @@ module Dogscaler
 
     def preflight_checks(state)
       # Quick fail filters
-      # Don't do anything if we're already at the capactiy we think we should be
-      if self.change == self.capacity
-        logger.debug "Instance count: #{self.change} matches capacity: #{self.capacity}"
-        return false
-      end
       # Don't do anything if we have scaled recently
       if Time.now - state.get(self.autoscalegroupname) < self.cooldown
         logger.debug "We've scaled too soon, cooling down"
         return false
       end
-      # Don't do anything if the new value is lower than the minimium
-      if self.change < self.min_instances
-        logger.debug "New size: #{self.change} smaller than min count: #{self.min_instances}"
+
+      # Don't do anything if we're already at the capactiy we think we should be
+      if self.change == self.capacity
+        logger.debug "Instance count: #{self.change} matches capacity: #{self.capacity}"
         return false
-      end
+      # Don't do anything if the new value is lower than the minimium
+      elsif self.change < self.min_instances
+        if self.capacity == self.min_instances
+          logger.debug "Already at min asg size, doing nothing"
+          return false
+        end
+
+        logger.debug "New size: #{self.change} smaller than min count: #{self.min_instances}, defaulting to min asg size"
+        self.change = self.min_instances
       # Don't do anything if the new value is higher than the maximum
-      if self.change > self.max_instances
+      elsif self.change > self.max_instances
         logger.debug "New size: #{self.change} larger than max count: #{self.max_instances}"
         if self.capacity == self.max_instances
-          logger.debug "Already at max, doing nothing"
+          logger.debug "Already at max asg size, doing nothing"
           return false
-        else
-          logger.debug "Updating to the max: #{self.max_instances}"
-          self.change = self.max_instances
-          return true
         end
+
+        logger.debug "Updating to the max: #{self.max_instances}"
+        self.change = self.max_instances
       end
       true
     end
@@ -129,6 +132,5 @@ module Dogscaler
     def change
       @change || process_change
     end
-
   end
 end
