@@ -53,7 +53,6 @@ module Dogscaler
       end
 
       asg_name.select! do |group|
-        group.desired_capacity > 0 and
         group.max_size > 0
       end
 
